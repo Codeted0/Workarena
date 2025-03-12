@@ -2,21 +2,24 @@ import { Plus, User } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 
-const Navbar = ({ setIsModalOpen }) => {  // 🔹 Get `setIsModalOpen` from App.js
-  const location = useLocation();
-  const [pageTitle, setPageTitle] = useState("");
+const Navbar = ({ setIsModalOpen, activePage}) => {
+  // const location = useLocation();
+  // const [pageTitle, setPageTitle] = useState("");
   const [currentDate, setCurrentDate] = useState("");
 
   useEffect(() => {
-    const titles = {
-      "/dashboard": "Dashboard",
-      "/tasks": "Tasks",
-      "/progress": "Progress",
-      "/settings": "Settings",
-    };
-    setPageTitle(titles[location.pathname] || "WorkArena");
+    // console.log("Current Path:", location.pathname);  // ✅ Debugging Line
 
-    // Get Current Date
+    // const titles = {
+    //   "/dashboard": "Dashboard",
+    //   "/tasks": "Tasks",
+    //   "/progress": "Progress",
+    //   "/settings": "Settings",
+    // };
+
+    // setPageTitle(titles[location.pathname] || "WorkArena");
+
+    // Update Current Date
     const today = new Date();
     const formattedDate = today.toLocaleDateString("en-US", {
       weekday: "long",
@@ -25,7 +28,15 @@ const Navbar = ({ setIsModalOpen }) => {  // 🔹 Get `setIsModalOpen` from App.
       year: "numeric",
     });
     setCurrentDate(formattedDate);
-  }, [location.pathname]);
+  }, [location]);
+  const pageTitles = {
+    dashboard: "Dashboard",
+    tasks: "Tasks",
+    progress: "Progress",
+    settings: "Settings",
+  };
+
+  const pageTitle = pageTitles[activePage] || "Dashboard"; // ✅ Default to Dashboard
 
   return (
     <div className="flex justify-between items-center bg-white text-[#5A54B4] px-6 py-4 shadow-lg">
@@ -40,7 +51,7 @@ const Navbar = ({ setIsModalOpen }) => {  // 🔹 Get `setIsModalOpen` from App.
         {/* Add Task Button */}
         <button
           className="bg-[#5A54B4] text-white shadow px-4 py-2 cursor-pointer rounded-lg flex items-center hover:bg-[#4a47a3] transition"
-          onClick={() => setIsModalOpen(true)}  // 🔹 Open modal when clicked
+          onClick={() => setIsModalOpen(true)} // 🔹 Open modal when clicked
         >
           <Plus className="w-5 h-5 mr-2" /> Add Task
         </button>
