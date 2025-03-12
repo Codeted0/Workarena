@@ -1,0 +1,42 @@
+@import "tailwindcss";
+/* @tailwind utilities; */
+
+/* :root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+} */
+/* Prevent scrolling */
+body {
+  overflow: hidden;
+}
+/* Hide scrollbar while keeping scrolling enabled */
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;  /* Hide scrollbar for IE/Edge */
+  scrollbar-width: none;  /* Hide scrollbar for Firefox */
+}
+/* Tailwind Custom Styles (Add to global.css)
+.custom-calendar {
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent;
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.selected-date {
+  background: linear-gradient(135deg, #4f46e5, #9333ea) !important;
+  color: white !important;
+  border-radius: 50%;
+  font-weight: bold;
+} */

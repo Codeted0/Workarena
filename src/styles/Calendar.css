@@ -1,0 +1,63 @@
+/* Compact Calendar Styling */
+.react-calendar {
+    width: 100%;
+    max-width: 250px;
+    background: transparent;
+    color: white;
+    border: none;
+    font-family: "Poppins", sans-serif;
+    text-align: center;
+    padding: 5px;
+  }
+  
+  /* Fix Calendar Navigation (Month/Year) */
+  .react-calendar__navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: none;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;  /* Decrease font size */
+    padding: 5px;
+  }
+  
+  /* Weekday Labels */
+  .react-calendar__month-view__weekdays {
+    text-transform: uppercase;
+    font-size: 10px; /* Reduce size */
+    color: #ccc;
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 2px;
+  }
+  
+  /* Fix date numbers */
+  .react-calendar__tile {
+    padding: 6px;
+    border-radius: 6px;
+    transition: background 0.3s ease;
+    font-size: 12px;  /* Reduce size */
+    text-align: center;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Highlight Selected Day */
+  .react-calendar__tile--active {
+    background: #6D5DFB !important;
+    color: white !important;
+    font-weight: bold;
+    border-radius: 6px;
+  }
+  
+  /* Today's Date */
+  .react-calendar__tile--now {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+  }
+  
