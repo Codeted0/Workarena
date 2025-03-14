@@ -1,5 +1,5 @@
 import { useDroppable } from "@dnd-kit/core";
-import TaskCard from "./TaskCard";
+import TaskCard from "./Taskcard";
 
 const columnColors = {
   Todo: "bg-red-500",
