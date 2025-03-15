@@ -1,11 +1,33 @@
 import { X } from "lucide-react";
-import streak from '../assets/streak.png';
-import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useState, useEffect } from "react";
+import { auth, db } from "../firebase"; // ✅ Import Firebase
+import { doc, getDoc } from "firebase/firestore";
 
 const ProfileSidebar = ({ onClose }) => {
-  const { userData } = useAuth(); // ✅ Get user data from context
+  const [userData, setUserData] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const user = auth.currentUser; // ✅ Get current logged-in user
+      if (!user) return;
+
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          setUserData(userDocSnap.data());
+        } else {
+          console.warn("⚠️ No user data found in Firestore!");
+        }
+      } catch (error) {
+        console.error("🔥 Error fetching user data:", error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   return (
     <>
@@ -18,11 +40,11 @@ const ProfileSidebar = ({ onClose }) => {
 
         {/* User Info */}
         <div className="flex flex-col items-center mt-6">
-          {/* Profile Image Placeholder */}
-          <div className="w-30 h-30 shadow-2xl bg-gray-300 rounded-full mb-2"></div>
-
+          <div className="w-24 h-24 bg-gray-300 rounded-full mb-2"></div>
           <h2 className="text-xl font-bold">{userData?.name || "User"}</h2>
-          <span className="bg-gray-800 px-3 py-1 text-sm rounded-lg mt-1">{userData?.profession || "Not Set"}</span>
+          <span className="bg-gray-800 px-3 py-1 text-sm rounded-lg mt-1">
+            {userData?.profession || "No Profession"}
+          </span>
           <p className="text-gray-300 mt-2">{userData?.email || "No Email"}</p>
         </div>
 
@@ -31,7 +53,7 @@ const ProfileSidebar = ({ onClose }) => {
           <h3 className="text-md font-semibold">Current Streak</h3>
           <div className="flex items-center justify-between mt-2">
             <span className="text-3xl font-bold">2</span>
-            <img src={streak} alt="Streak Icon" className="w-10 h-10" />
+            <img src="/flame-icon.png" alt="Streak Icon" className="w-10 h-10" />
           </div>
         </div>
 

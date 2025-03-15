@@ -1,28 +1,42 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
-import { updateProfile } from "firebase/auth";
+import { auth, db } from "../firebase"; // ✅ Import Firebase
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 const Register = () => {
-  const [name, setName] = useState("");  // Added name field
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      // ✅ Pass name to register() function
       const userCredential = await register(email, password, name);
+      const user = userCredential.user; // ✅ Get the newly registered user
   
-      navigate("/login"); // Redirect after successful registration
+      console.log("✅ User registered:", user.uid);  
+  
+      // ✅ Store user details in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: name,
+        email: email,
+        createdAt: new Date().toISOString(),
+      });
+  
+      console.log("✅ User data saved in Firestore");
+  
+      navigate("/dashboard"); // Redirect to dashboard after registration
     } catch (error) {
+      console.error("🔥 Registration Error:", error);
       setError(error.message);
     }
   };
-  
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="w-full max-w-lg p-10 bg-white rounded-xl shadow-xl">
@@ -33,10 +47,8 @@ const Register = () => {
           {/* Name Field */}
           <div>
             <label className="block text-gray-600 text-lg font-medium">Full Name</label>
-            <input 
+            <input
               type="text"
-              id="name"
-              name="name"
               placeholder="Enter your full name"
               className="w-full px-4 py-3 border rounded-lg text-lg focus:outline-none focus:ring focus:border-green-400"
               value={name}
@@ -48,10 +60,8 @@ const Register = () => {
           {/* Email Field */}
           <div>
             <label className="block text-gray-600 text-lg font-medium">Email</label>
-            <input 
+            <input
               type="email"
-              id="email"
-              name="email"
               placeholder="Enter your email"
               className="w-full px-4 py-3 border rounded-lg text-lg focus:outline-none focus:ring focus:border-green-400"
               value={email}
@@ -63,10 +73,8 @@ const Register = () => {
           {/* Password Field */}
           <div>
             <label className="block text-gray-600 text-lg font-medium">Password</label>
-            <input 
+            <input
               type="password"
-              id="password"
-              name="password"
               placeholder="Enter your password"
               className="w-full px-4 py-3 border rounded-lg text-lg focus:outline-none focus:ring focus:border-green-400"
               value={password}
@@ -75,13 +83,14 @@ const Register = () => {
             />
           </div>
 
+          {/* Register Button */}
           <button type="submit" className="w-full bg-green-500 text-white py-3 text-lg rounded-lg hover:bg-green-600 transition duration-300">
             Register
           </button>
         </form>
 
         <p className="text-center text-lg text-gray-600 mt-6">
-          Already have an account?  
+          Already have an account?
           <Link to="/login" className="text-blue-500 ml-1 hover:underline">Login</Link>
         </p>
       </div>
