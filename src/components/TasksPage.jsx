@@ -6,96 +6,117 @@ import { db } from "../firebase";
 import { collection, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 
+
 const TasksPage = () => {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState({ Todo: [], InProgress: [], Expired: [], Completed: [] });
+  const [tasks, setTasks] = useState({
+    Todo: [],
+    InProgress: [],
+    Expired: [],
+    Completed: [],
+  });
   const [activeTask, setActiveTask] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredTasks, setFilteredTasks] = useState(tasks);
 
-  // 🔹 Fetch tasks in real-time
+  // 🔹 Fetch tasks & auto-move expired tasks
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = onSnapshot(collection(db, "users", user.uid, "tasks"), (snapshot) => {
-      let updatedTasks = { Todo: [], InProgress: [], Expired: [], Completed: [] };
+    const unsubscribe = onSnapshot(
+      collection(db, "users", user.uid, "tasks"),
+      async (snapshot) => {
+        let updatedTasks = { Todo: [], InProgress: [], Expired: [], Completed: [] };
+        const now = new Date();
 
-      snapshot.forEach((doc) => {
-        const taskData = doc.data();
-        const status = taskData.status?.trim() || "Todo"; // ✅ Normalize status
+        snapshot.forEach((doc) => {
+          const taskData = doc.data();
+          const status = taskData.status?.trim() || "Todo";
+          const taskEndDate = taskData.endDate ? new Date(taskData.endDate) : null;
 
-        if (updatedTasks[status]) {
-          updatedTasks[status].push({ id: doc.id, ...taskData });
-        } else {
-          console.warn(`⚠️ Unknown status "${taskData.status}" found in Firestore.`);
-          updatedTasks["Todo"].push({ id: doc.id, ...taskData });
-        }
-      });
+          // ✅ Ensure taskEndDate is valid
+          if (taskEndDate && !isNaN(taskEndDate) && taskEndDate < now && status !== "Completed") {
+            updatedTasks["Expired"].push({ id: doc.id, ...taskData, status: "Expired" });
 
-      console.log("🔄 Real-time Tasks Updated:", updatedTasks);
-      setTasks(updatedTasks);
-    });
+            // ✅ Move to "Expired" in Firestore
+            const taskRef = doc.ref;
+            updateDoc(taskRef, { status: "Expired" })
+              .then(() => console.log(`⚠️ Task "${taskData.title}" moved to Expired!`))
+              .catch((error) => console.error("🔥 Error updating expired task:", error));
+          } else {
+            updatedTasks[status]?.push({ id: doc.id, ...taskData });
+          }
+        });
+
+        console.log("🔄 Real-time Tasks Updated:", updatedTasks);
+        setTasks(updatedTasks);
+        setFilteredTasks(updatedTasks); // ✅ Ensure filteredTasks updates as well
+      }
+    );
 
     return () => unsubscribe();
   }, [user]);
 
-  // ✅ Move task to "Completed" column when checked
-  const handleTaskComplete = async (taskId) => {
-    setTasks((prev) => {
-      let updatedTasks = { ...prev };
+  // ✅ Search Function
+  const handleSearch = (query) => {
+    setSearchQuery(query);
 
-      const fromColumn = Object.keys(prev).find((col) =>
-        prev[col].some((task) => task.id === taskId)
-      );
+    if (query.trim() === "") {
+      setFilteredTasks(tasks);
+    } else {
+      let filtered = { Todo: [], InProgress: [], Expired: [], Completed: [] };
 
-      if (!fromColumn) return prev; // Task not found
+      Object.keys(tasks).forEach((status) => {
+        filtered[status] = tasks[status].filter(
+          (task) =>
+            task.title?.toLowerCase().includes(query.toLowerCase()) ||
+            task.description?.toLowerCase().includes(query.toLowerCase()) ||
+            (task.subtasks &&
+              task.subtasks.some((sub) =>
+                sub.name.toLowerCase().includes(query.toLowerCase())
+              ))
+        );
+      });
 
-      const taskToMove = prev[fromColumn].find((task) => task.id === taskId);
-
-      // ✅ Instantly update UI
-      updatedTasks[fromColumn] = prev[fromColumn].filter((task) => task.id !== taskId);
-      updatedTasks["Completed"] = [{ ...taskToMove, status: "Completed" }, ...prev["Completed"]];
-
-      return updatedTasks;
-    });
-
-    // ✅ Update Firestore
-    try {
-      const taskRef = doc(db, "users", user.uid, "tasks", taskId);
-      await updateDoc(taskRef, { status: "Completed" });
-
-      console.log(`✅ Task "${taskId}" marked as completed!`);
-    } catch (error) {
-      console.error("🔥 Error completing task:", error.message);
+      setFilteredTasks(filtered);
     }
   };
 
   // 🔹 Drag Start Handler
   const handleDragStart = (event) => {
     const { active } = event;
-    const task = Object.values(tasks).flat().find((t) => t.id === active.id);
+    const task = Object.values(tasks)
+      .flat()
+      .find((t) => t.id === active.id);
     setActiveTask(task);
   };
 
-  // 🔹 Drag End Handler (Fixes "snap back" illusion)
+  // 🔹 Drag End Handler (Fixes "snap back" issue)
   const handleDragEnd = async (event) => {
     setActiveTask(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const fromColumn = Object.keys(tasks).find((col) => tasks[col].some((task) => task.id === active.id));
+    const fromColumn = Object.keys(tasks).find((col) =>
+      tasks[col].some((task) => task.id === active.id)
+    );
     const toColumn = over.id;
 
     if (!fromColumn || !toColumn || fromColumn === toColumn) return;
 
     const taskToMove = tasks[fromColumn].find((task) => task.id === active.id);
 
-    // ✅ 🔹 Immediately update UI (Optimistic Update)
-    setTasks((prev) => ({
-      ...prev,
-      [fromColumn]: prev[fromColumn].filter((task) => task.id !== active.id),
-      [toColumn]: [{ ...taskToMove, status: toColumn }, ...prev[toColumn]],
-    }));
+    // ✅ Instantly update UI (Optimistic Update)
+    const newTasks = {
+      ...tasks,
+      [fromColumn]: tasks[fromColumn].filter((task) => task.id !== active.id),
+      [toColumn]: [{ ...taskToMove, status: toColumn }, ...tasks[toColumn]],
+    };
 
-    // ✅ 🔹 Update Firestore in the background
+    setTasks(newTasks);
+    setFilteredTasks(newTasks);
+
+    // ✅ Update Firestore
     try {
       const taskRef = doc(db, "users", user.uid, "tasks", taskToMove.id);
       await updateDoc(taskRef, { status: toColumn });
@@ -107,20 +128,48 @@ const TasksPage = () => {
   };
 
   return (
-    <DndContext collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Tasks</h1>
+        {/* 🔎 Search Bar */}
+        <div className="flex justify-between items-center mb-4">
+          <input
+            type="text"
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="p-2 border-2 border-[#5A54B4] rounded w-1/2"
+          />
+          <button
+            onClick={() => {
+              setSearchQuery("");
+              setFilteredTasks(tasks);
+            }}
+            className="bg-[#5A54B4] text-white px-4 py-2 rounded"
+          >
+            Show All Tasks
+          </button>
+        </div>
 
+        {/* 📌 Task Columns */}
         <div className="flex gap-4">
-          {Object.keys(tasks).map((column) => (
-            <TaskColumn key={column} title={column} tasks={tasks[column]} onTaskComplete={handleTaskComplete} />
+          {Object.keys(filteredTasks).map((column) => (
+            <TaskColumn
+              key={column}
+              title={column}
+              tasks={filteredTasks[column]}
+              onTaskComplete={() => {}}
+            />
           ))}
         </div>
       </div>
 
       {/* ✅ Drag Overlay (Fix disappearing task) */}
       <DragOverlay>
-        {activeTask ? <TaskCard task={activeTask} onTaskComplete={handleTaskComplete} /> : null}
+        {activeTask ? <TaskCard task={activeTask} /> : null}
       </DragOverlay>
     </DndContext>
   );

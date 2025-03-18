@@ -1,10 +1,4 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./firebase";
@@ -13,11 +7,19 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import handAnimation from "./assets/handanimation.gif";
 
 function App() {
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState(auth); // ✅ Handles authentication state
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) {
+    return (
+      // ✅ Show the Hand GIF while loading
+      <div className="flex justify-center items-center h-screen bg-white">
+        <img src={handAnimation} alt="Loading..." className="w-32 h-32" />
+      </div>
+    );
+  }
 
   return (
     <AuthProvider>
