@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { auth, db } from "../firebase"; // ✅ Import Firebase
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
@@ -14,12 +13,18 @@ const Register = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setError(""); // Clear previous errors
+
     try {
-      const userCredential = await register(email, password, name);
-      const user = userCredential.user; // ✅ Get the newly registered user
-  
-      console.log("✅ User registered:", user.uid);  
-  
+      // ✅ Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user; 
+
+      // ✅ Update user's profile with name
+      await updateProfile(user, { displayName: name });
+
+      console.log("✅ User registered:", user.uid);
+
       // ✅ Store user details in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
@@ -27,10 +32,11 @@ const Register = () => {
         email: email,
         createdAt: new Date().toISOString(),
       });
-  
+
       console.log("✅ User data saved in Firestore");
-  
-      navigate("/dashboard"); // Redirect to dashboard after registration
+
+      // ✅ Redirect to dashboard
+      navigate("/dashboard");
     } catch (error) {
       console.error("🔥 Registration Error:", error);
       setError(error.message);

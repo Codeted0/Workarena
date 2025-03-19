@@ -16,7 +16,7 @@ import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import NewModalPopup from "../NewModalPopup";
 
-const TaskCard = ({ task }) => {
+const TaskCard = ({ task , onPinTask }) => {
   const { user } = useAuth();
   const [taskCompleted, setTaskCompleted] = useState(
     task?.status === "Completed"
@@ -160,10 +160,8 @@ const TaskCard = ({ task }) => {
               <Trash className="w-5 h-5" />
             </button>
             <button
-              className={`text-yellow-500 hover:text-yellow-700 ${
-                task.status === "Pinned" ? "opacity-50" : ""
-              }`}
-              onClick={togglePinTask} // ✅ Use togglePinTask here
+              className="text-yellow-500 hover:text-yellow-700"
+              onClick={() => onPinTask(task)}
             >
               <Pin className="w-5 h-5" />
             </button>

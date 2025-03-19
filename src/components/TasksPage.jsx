@@ -3,9 +3,9 @@ import { DndContext, closestCorners, DragOverlay } from "@dnd-kit/core";
 import TaskColumn from "./tasks/TaskColumn";
 import TaskCard from "./tasks/Taskcard";
 import { db } from "../firebase";
-import { collection, doc, updateDoc, onSnapshot } from "firebase/firestore";
+// import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, updateDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
-
 
 const TasksPage = () => {
   const { user } = useAuth();
@@ -14,6 +14,7 @@ const TasksPage = () => {
     InProgress: [],
     Expired: [],
     Completed: [],
+    Pinned: [],
   });
   const [activeTask, setActiveTask] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,23 +27,43 @@ const TasksPage = () => {
     const unsubscribe = onSnapshot(
       collection(db, "users", user.uid, "tasks"),
       async (snapshot) => {
-        let updatedTasks = { Todo: [], InProgress: [], Expired: [], Completed: [] };
+        let updatedTasks = {
+          Todo: [],
+          InProgress: [],
+          Expired: [],
+          Completed: [],
+        };
         const now = new Date();
 
         snapshot.forEach((doc) => {
           const taskData = doc.data();
           const status = taskData.status?.trim() || "Todo";
-          const taskEndDate = taskData.endDate ? new Date(taskData.endDate) : null;
+          const taskEndDate = taskData.endDate
+            ? new Date(taskData.endDate)
+            : null;
 
           // ✅ Ensure taskEndDate is valid
-          if (taskEndDate && !isNaN(taskEndDate) && taskEndDate < now && status !== "Completed") {
-            updatedTasks["Expired"].push({ id: doc.id, ...taskData, status: "Expired" });
+          if (
+            taskEndDate &&
+            !isNaN(taskEndDate) &&
+            taskEndDate < now &&
+            status !== "Completed"
+          ) {
+            updatedTasks["Expired"].push({
+              id: doc.id,
+              ...taskData,
+              status: "Expired",
+            });
 
             // ✅ Move to "Expired" in Firestore
             const taskRef = doc.ref;
             updateDoc(taskRef, { status: "Expired" })
-              .then(() => console.log(`⚠️ Task "${taskData.title}" moved to Expired!`))
-              .catch((error) => console.error("🔥 Error updating expired task:", error));
+              .then(() =>
+                console.log(`⚠️ Task "${taskData.title}" moved to Expired!`)
+              )
+              .catch((error) =>
+                console.error("🔥 Error updating expired task:", error)
+              );
           } else {
             updatedTasks[status]?.push({ id: doc.id, ...taskData });
           }
@@ -56,6 +77,27 @@ const TasksPage = () => {
 
     return () => unsubscribe();
   }, [user]);
+
+  const handlePinTask = async (task) => {
+    if (!user) return;
+  
+    try {
+      const taskCollectionRef = collection(db, "users", user.uid, "tasks");
+      const newTaskRef = doc(taskCollectionRef); // Create a new document reference (new ID)
+  
+      // ✅ Create a COPY of the task with a new ID & set it to "Pinned"
+      await setDoc(newTaskRef, {
+        ...task,
+        id: newTaskRef.id, // ✅ Set the new document ID
+        status: "Pinned", // ✅ Keep the original task unchanged
+      });
+  
+      console.log(`📌 Task "${task.title}" copied to Pinned!`);
+    } catch (error) {
+      console.error("🔥 Error pinning task:", error.message);
+    }
+  };
+  
 
   // ✅ Search Function
   const handleSearch = (query) => {
@@ -157,12 +199,12 @@ const TasksPage = () => {
         {/* 📌 Task Columns */}
         <div className="flex gap-4">
           {Object.keys(filteredTasks).map((column) => (
-            <TaskColumn
-              key={column}
-              title={column}
-              tasks={filteredTasks[column]}
-              onTaskComplete={() => {}}
-            />
+           <TaskColumn
+           key={column}
+           title={column}
+           tasks={filteredTasks[column]}
+           onPinTask={handlePinTask} // ✅ Pass handlePinTask as a prop
+         />
           ))}
         </div>
       </div>
