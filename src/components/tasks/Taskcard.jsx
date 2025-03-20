@@ -16,7 +16,7 @@ import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import NewModalPopup from "../NewModalPopup";
 
-const TaskCard = ({ task , onPinTask }) => {
+const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
   const { user } = useAuth();
   const [taskCompleted, setTaskCompleted] = useState(
     task?.status === "Completed"
@@ -213,6 +213,7 @@ const TaskCard = ({ task , onPinTask }) => {
                       ? "text-green-500"
                       : "text-gray-400 hover:text-green-500"
                   }`}
+                  onClick={() => onSubtaskToggle(task.id, index)} // ✅ Call function correctly
                 />
               </div>
             ))}

@@ -3,8 +3,12 @@ import { DndContext, closestCorners, DragOverlay } from "@dnd-kit/core";
 import TaskColumn from "./tasks/TaskColumn";
 import TaskCard from "./tasks/Taskcard";
 import { db } from "../firebase";
-// import { collection, doc, setDoc } from "firebase/firestore";
-import { collection, doc, updateDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { 
+  collection, doc, 
+  updateDoc, onSnapshot, getDoc // ✅ Add getDoc here
+} from "firebase/firestore";
+
+
 import { useAuth } from "../context/AuthContext";
 
 const TasksPage = () => {
@@ -78,23 +82,62 @@ const TasksPage = () => {
     return () => unsubscribe();
   }, [user]);
 
+  // import { getDocs, query, where } from "firebase/firestore";
+
+  // import { getDocs, query, where } from "firebase/firestore";
+
   const handlePinTask = async (task) => {
     if (!user) return;
   
+    // ❌ Prevent pinning expired tasks
+    if (task.status === "Expired") {
+      alert("⚠️ You cannot pin expired tasks!");
+      return;
+    }
+  
     try {
-      const taskCollectionRef = collection(db, "users", user.uid, "tasks");
-      const newTaskRef = doc(taskCollectionRef); // Create a new document reference (new ID)
+      const taskRef = doc(db, "users", user.uid, "tasks", task.id);
   
-      // ✅ Create a COPY of the task with a new ID & set it to "Pinned"
-      await setDoc(newTaskRef, {
-        ...task,
-        id: newTaskRef.id, // ✅ Set the new document ID
-        status: "Pinned", // ✅ Keep the original task unchanged
-      });
+      // ✅ Instead of creating a new task, just update isPinned to true
+      await updateDoc(taskRef, { isPinned: true });
   
-      console.log(`📌 Task "${task.title}" copied to Pinned!`);
+      console.log(`📌 Task "${task.title}" pinned successfully!`);
     } catch (error) {
       console.error("🔥 Error pinning task:", error.message);
+    }
+  };
+
+  
+  const handleSubtaskToggle = async (taskId, subtaskIndex) => {
+    if (!user) return;
+  
+    try {
+      const taskRef = doc(db, "users", user.uid, "tasks", taskId);
+      const taskSnap = await getDoc(taskRef); // ✅ Get current task data
+  
+      if (!taskSnap.exists()) {
+        console.error("🔥 Task not found!");
+        return;
+      }
+  
+      let taskData = taskSnap.data();
+      let updatedSubtasks = [...taskData.subtasks];
+  
+      // ✅ Toggle subtask completion
+      updatedSubtasks[subtaskIndex].completed = !updatedSubtasks[subtaskIndex].completed;
+  
+      // ✅ Check if all subtasks are completed
+      const allCompleted = updatedSubtasks.every(subtask => subtask.completed);
+  
+      // ✅ Update Firestore
+      await updateDoc(taskRef, {
+        subtasks: updatedSubtasks,
+        status: allCompleted ? "Completed" : taskData.status, // ✅ Move to Completed if all done
+      });
+  
+      console.log(`✅ Subtask ${subtaskIndex} updated for Task "${taskData.title}"`);
+    } catch (error) {
+      console.error("🔥 Error updating subtask:", error.message);
     }
   };
   
@@ -203,7 +246,8 @@ const TasksPage = () => {
            key={column}
            title={column}
            tasks={filteredTasks[column]}
-           onPinTask={handlePinTask} // ✅ Pass handlePinTask as a prop
+           onPinTask={handlePinTask}
+           onSubtaskToggle={handleSubtaskToggle} // ✅ Pass handlePinTask as a prop
          />
           ))}
         </div>

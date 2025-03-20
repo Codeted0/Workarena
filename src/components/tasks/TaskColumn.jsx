@@ -8,7 +8,7 @@ const columnColors = {
   Completed: "bg-green-500",
 };
 
-const TaskColumn = ({ title, tasks , onPinTask }) => {
+const TaskColumn = ({ title, tasks , onPinTask, onSubtaskToggle }) => {
   const { setNodeRef } = useDroppable({ id: title });
 
   // ✅ Sort tasks based on priority (High -> Medium -> Low)
@@ -28,7 +28,7 @@ const TaskColumn = ({ title, tasks , onPinTask }) => {
       <div className="mt-3 space-y-3 max-h-[450px] overflow-y-auto scrollbar-hidden">
         {sortedTasks.length > 0 ? (
           sortedTasks.map((task, index) => (
-            <TaskCard key={task.id} task={task} index={index} onPinTask={onPinTask} />
+            <TaskCard key={task.id} task={task} index={index} onPinTask={onPinTask} onSubtaskToggle={onSubtaskToggle} />
 
 
           ))

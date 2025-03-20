@@ -73,14 +73,14 @@ const NewModalPopup = ({ isOpen, onClose, task }) => {
     try {
       if (task?.id) {
         // ✅ Updating an existing task
-        const taskRef = doc(db, "users", user.uid, "tasks", task.id);
+        const taskRef = doc(db, "users", user.uid, "tasks", task.id); // Ensure correct ID
         await updateDoc(taskRef, updatedTask);
         console.log("✅ Task Updated:", updatedTask);
       } else {
         // ✅ Adding a new task
         const tasksCollection = collection(db, "users", user.uid, "tasks");
-        await addDoc(tasksCollection, updatedTask);
-        console.log("✅ New Task Added:", updatedTask);
+        const docRef = await addDoc(tasksCollection, updatedTask);
+        console.log("✅ New Task Added with ID:", docRef.id);
       }
   
       onClose(); // Close modal after save
@@ -88,6 +88,7 @@ const NewModalPopup = ({ isOpen, onClose, task }) => {
       console.error("🔥 Error saving task:", error);
     }
   };
+  
   
 
 

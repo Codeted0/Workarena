@@ -8,6 +8,7 @@ const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [gender, setGender] = useState(""); // ✅ New state for gender
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -18,7 +19,7 @@ const Register = () => {
     try {
       // ✅ Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user; 
+      const user = userCredential.user;
 
       // ✅ Update user's profile with name
       await updateProfile(user, { displayName: name });
@@ -30,6 +31,7 @@ const Register = () => {
         uid: user.uid,
         name: name,
         email: email,
+        gender: gender,  // ✅ Store gender
         createdAt: new Date().toISOString(),
       });
 
@@ -87,6 +89,22 @@ const Register = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+
+          {/* ✅ Gender Dropdown */}
+          <div>
+            <label className="block text-gray-600 text-lg font-medium">Gender</label>
+            <select
+              className="w-full px-4 py-3 border rounded-lg text-lg focus:outline-none focus:ring focus:border-green-400"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              required
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
           </div>
 
           {/* Register Button */}

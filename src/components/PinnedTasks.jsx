@@ -11,32 +11,46 @@ const PinnedTasks = () => {
   // ✅ Fetch pinned tasks in real-time from Firestore
   useEffect(() => {
     if (!user) return;
-
+  
     const unsubscribe = onSnapshot(
       collection(db, "users", user.uid, "tasks"),
       (snapshot) => {
         const pinned = snapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((task) => task.status === "Pinned"); // ✅ Filter only pinned tasks
-
+          .filter((task) => task.isPinned === true); // ✅ Filter only where isPinned is true
+  
         setPinnedTasks(pinned);
       }
     );
-
+  
     return () => unsubscribe();
   }, [user]);
+  
 
-  // ✅ Function to Unpin a Task
-  const togglePinTask = async (taskId) => {
-    try {
-      const taskRef = doc(db, "users", user.uid, "tasks", taskId);
-      await updateDoc(taskRef, { status: "Todo" });
+ // ✅ Function to Unpin a Task (Without Changing Status)
+ const togglePinTask = async (taskId) => {
+  if (!user) return;
 
-      console.log(`📌 Task "${taskId}" unpinned and moved back to Todo.`);
-    } catch (error) {
-      console.error("🔥 Error unpinning task:", error.message);
-    }
-  };
+  try {
+    const taskRef = doc(db, "users", user.uid, "tasks", taskId);
+
+    // ✅ Update Firestore first
+    await updateDoc(taskRef, { isPinned: false });
+
+    // ✅ After successful Firestore update, update UI state
+    setPinnedTasks((prevPinnedTasks) =>
+      prevPinnedTasks.filter((task) => task.id !== taskId)
+    );
+
+    console.log(`📌 Task "${taskId}" unpinned successfully.`);
+  } catch (error) {
+    console.error("🔥 Error unpinning task:", error.message);
+  }
+};
+
+
+
+
 
   return (
     <div className="bg-white h-auto p-2 rounded-lg shadow-[0_20px_20px_rgba(0,0,0,0.25)]">
@@ -57,19 +71,9 @@ const PinnedTasks = () => {
               </div>
 
               {/* Unpin Button */}
-              <button
-                className={`p-2 rounded-full transition ${
-                  task.status === "Pinned"
-                    ? "bg-purple-500 text-white hover:bg-purple-700"
-                    : "text-purple-500 hover:text-purple-700"
-                }`}
-                onClick={togglePinTask}
-              >
-                {task.status === "Pinned" ? (
-                  <Pin className="w-5 h-5 rotate-45" />
-                ) : (
-                  <Pin className="w-5 h-5" />
-                )}
+              
+              <button onClick={() => togglePinTask(task.id)}>
+                <Pin className="w-5 h-5 rotate-45" />
               </button>
             </div>
           ))
