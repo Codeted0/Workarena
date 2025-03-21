@@ -6,6 +6,7 @@ const Navbar = ({ setIsModalOpen, activePage }) => {
   const [currentDate, setCurrentDate] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
+  const sidebarRef = useRef(null); // ✅ Reference for Profile Sidebar
 
   useEffect(() => {
     const today = new Date();
@@ -27,10 +28,16 @@ const Navbar = ({ setIsModalOpen, activePage }) => {
 
   const pageTitle = pageTitles[activePage] || "Dashboard";
 
-  // Close sidebar when clicking outside
+  // ✅ Close sidebar only when clicking outside both profile icon & sidebar
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (isProfileOpen && profileRef.current && !profileRef.current.contains(event.target)) {
+      if (
+        isProfileOpen &&
+        profileRef.current &&
+        !profileRef.current.contains(event.target) &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target) // ✅ Now checking sidebar too
+      ) {
         setIsProfileOpen(false);
       }
     };
@@ -70,7 +77,7 @@ const Navbar = ({ setIsModalOpen, activePage }) => {
       </div>
 
       {/* Profile Sidebar (Only Show When Open) */}
-      {isProfileOpen && <ProfileSidebar />}
+      {isProfileOpen && <ProfileSidebar ref={sidebarRef} onClose={() => setIsProfileOpen(false)} />}
     </div>
   );
 };
