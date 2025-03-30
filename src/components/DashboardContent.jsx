@@ -28,6 +28,9 @@ const DashboardContent = () => {
     Sunday: "Take time to relax & recharge. You deserve it! ☕💆‍♀️",
   };
 
+
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]); 
+
   // 🔹 Fetch user gender from Firestore
   useEffect(() => {
     const fetchUserData = async () => {
@@ -126,7 +129,7 @@ const DashboardContent = () => {
 
         {/* Calendar Section */}
         <div className="col-span-1 row-span-2 flex justify-end">
-          <CalendarWidget />
+        <CalendarWidget selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
         </div>
 
         {/* Pinned Tasks */}
@@ -139,7 +142,8 @@ const DashboardContent = () => {
           <TaskCompletionChart completed={completedTasks} total={totalTasks} />
         </div>
 
-        <DayWiseTasks />
+        <DayWiseTasks selectedDate={selectedDate} />
+
       </div>
     </div>
   );

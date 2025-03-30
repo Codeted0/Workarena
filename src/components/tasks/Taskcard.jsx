@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+
 import { useDraggable } from "@dnd-kit/core";
-import { motion } from "framer-motion";
-// import { GripVertical } from "lucide-react"; // Ensure you have the correct import
+import { motion, AnimatePresence } from "framer-motion";
+
 import {
   CheckCircle,
   Pencil,
@@ -12,9 +13,16 @@ import {
   GripVertical,
 } from "lucide-react";
 import { db } from "../../firebase";
-import { doc, deleteDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  deleteDoc,
+  updateDoc,
+  increment,
+  getDoc,
+} from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import NewModalPopup from "../NewModalPopup";
+// import { useRef } from "react";
 
 const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
   const { user } = useAuth();
@@ -25,6 +33,10 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
   const [isEditing, setIsEditing] = useState(false); // ✅ Track modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [showCoin, setShowCoin] = useState(false); // ✅ Control animation
+  // ✅ Animation & Sound State
+  // const [showCoin, setShowCoin] = useState(false);
+  const coinAudio = useRef(null);
 
   const openEditModal = () => {
     setSelectedTask(task);
@@ -40,7 +52,31 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
       />
     );
   }
+  // ✅ Animation & Sound State
+  // ✅ Load Sound Effect on Mount
+  useEffect(() => {
+    coinAudio.current = new Audio("/addpoints.mp3"); // ✅ Make sure it's in `public/12-points.mp3`
+    coinAudio.current.load();
+  }, []);
+  const playCoinSound = () => {
+    coinAudio.current.currentTime = 0; // Reset sound to start
+    coinAudio.current
+      .play()
+      .catch((error) => console.error("🔇 Sound error:", error));
+  };
 
+  // ✅ Play sound & show animation
+  const triggerCoinEffect = () => {
+    if (coinAudio.current) {
+      coinAudio.current.currentTime = 0;
+      coinAudio.current
+        .play()
+        .catch((err) => console.error("🔇 Sound error:", err));
+    }
+
+    setShowCoin(true);
+    setTimeout(() => setShowCoin(false), 1000); // Hide animation after 1 second
+  };
   // ✅ Convert Firestore subtasks object into an array (if needed)
   const formatSubtasks = (subtasks) => {
     if (!subtasks) return [];
@@ -55,22 +91,108 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
     id: task?.id,
   });
 
-  // ✅ Handle task completion
-  const toggleTaskCompletion = async () => {
-    if (taskCompleted) return; // Already completed
-
+  const updateStreak = async (userRef, lastActive, today) => {
     try {
-      const taskRef = doc(db, "users", user.uid, "tasks", task.id);
-
-      // ✅ Update Firestore
-      await updateDoc(taskRef, { status: "Completed" });
-
-      setTaskCompleted(true); // ✅ Update UI instantly
-      console.log(`✅ Task "${task.title}" marked as completed!`);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) return;
+  
+      const userData = userSnap.data();
+      let newStreak = userData?.streak || 0;
+  
+      if (!lastActive || new Date(lastActive) < new Date(today).setDate(new Date(today).getDate() - 1)) {
+        // 🔥 Reset streak if the user missed a day
+        newStreak = 1;
+      } else if (lastActive !== today) {
+        // ✅ Increase streak if the lastActiveDate is not today
+        newStreak += 1;
+      }
+  
+      await updateDoc(userRef, {
+        streak: newStreak,
+        lastActiveDate: today,
+      });
+  
+      console.log("🔥 Streak updated:", newStreak);
     } catch (error) {
-      console.error("🔥 Error completing task:", error.message);
+      console.error("🔥 Error updating streak:", error.message);
     }
   };
+  
+
+  // ✅ Toggle Task Completion
+  const toggleTaskCompletion = async () => {
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) return;
+      const userData = userSnap.data();
+
+      const today = new Date().toISOString().split("T")[0]; // 📅 YYYY-MM-DD format
+      const lastActive = userData?.lastActiveDate || null;
+
+      if (taskCompleted) {
+        // 🔻 Marking as incomplete → Reduce points
+        await updateDoc(doc(db, "users", user.uid, "tasks", task.id), {
+          status: "Todo",
+        });
+        await updateDoc(userRef, { points: increment(-10) });
+        setTaskCompleted(false);
+      } else {
+        // ✅ Marking as completed → Award points
+        await updateDoc(doc(db, "users", user.uid, "tasks", task.id), {
+          status: "Completed",
+        });
+        await updateDoc(userRef, { points: increment(10) });
+
+        // 🔥 Update streak
+        await updateStreak(userRef, lastActive, today);
+        setTaskCompleted(true);
+      }
+    } catch (error) {
+      console.error("🔥 Error updating task status:", error.message);
+    }
+  };
+
+
+  // ✅ Toggle Subtask Completion
+  const toggleSubtaskCompletion = async (index) => {
+    const updatedSubtasks = [...subtasks];
+    const subtask = updatedSubtasks[index];
+  
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+  
+      if (!userSnap.exists()) return;
+      const userData = userSnap.data();
+  
+      const today = new Date().toISOString().split("T")[0];
+      const lastActive = userData?.lastActiveDate || null;
+  
+      // 🔄 Toggle completion status
+      subtask.completed = !subtask.completed;
+  
+      // ✅ Update Firestore
+      const taskRef = doc(db, "users", user.uid, "tasks", task.id);
+      await updateDoc(taskRef, { subtasks: updatedSubtasks });
+  
+      // ✅ Adjust points
+      await updateDoc(userRef, {
+        points: increment(subtask.completed ? 5 : -5),
+      });
+  
+      setSubtasks(updatedSubtasks);
+  
+      // ✅ Update streak only if subtask is marked completed
+      if (subtask.completed) {
+        await updateStreak(userRef, lastActive, today);
+      }
+    } catch (error) {
+      console.error("🔥 Error updating subtask:", error.message);
+    }
+  };
+  
 
   // ✅ Handle delete task
   const deleteTask = async () => {
@@ -100,6 +222,8 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
     const options = { day: "2-digit", month: "short" }; // Example: "15 Mar"
     return new Date(dateString).toLocaleDateString("en-GB", options);
   };
+
+  // console.log("🔥 Subtasks Data:", subtasks);
   return (
     <>
       <motion.div
@@ -141,8 +265,25 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
                 ? "text-green-500"
                 : "text-gray-400 hover:text-green-500"
             }`}
-            onClick={toggleTaskCompletion}
+            onClick={() => {
+              toggleTaskCompletion();
+              triggerCoinEffect(); // 🎯 Show Animation & Play Sound
+            }}
           />
+          {/* ✅ Coin Animation */}
+          <AnimatePresence>
+            {showCoin && (
+              <motion.img
+                src="/coin.png" // ✅ Your coin image must be inside `public/coin.png`
+                alt="Coin"
+                className="absolute w-8 h-8 left-1/2 top-0 transform -translate-x-1/2"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1.5, y: -40 }}
+                exit={{ opacity: 0, scale: 0, y: -80 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              />
+            )}
+          </AnimatePresence>
 
           {/* ✅ Task Actions */}
           <div className="space-x-2">
@@ -182,13 +323,13 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
             <p className="text-sm text-gray-500">No Subtasks</p>
           )}
         </div>
-        {/* ✅ Toggle Subtasks */}
+        {/* ✅ Toggle Subtasks Visibility */}
         {subtasks.length > 0 && (
           <button
             className="flex items-center text-sm text-gray-600 mt-2"
             onClick={() => setShowSubtasks(!showSubtasks)}
           >
-            {showSubtasks ? "Hide Subtasks" : "Show Subtasks"}
+            {showSubtasks ? "Hide Tasks" : "Show Tasks"}
             {showSubtasks ? (
               <ChevronUp className="w-4 h-4 ml-1" />
             ) : (
@@ -196,16 +337,16 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
             )}
           </button>
         )}
-        {/* ✅ Subtasks List */}
+        {/* ✅ Subtask List (Only shows if `showSubtasks` is true) */}
         {showSubtasks && (
-          <div className="mt-2 bg-gray-200 p-2 rounded-lg">
+          <div className="mt-2 bg-gray-200 text-sm p-2 rounded-lg">
             {subtasks.map((subtask, index) => (
               <div
                 key={index}
-                className="flex justify-between items-center mb-1"
+                className="flex justify-between text-gray-700 items-center mb-1"
               >
                 <span className="text-sm">
-                  {subtask?.title || "Untitled Subtask"}
+                  {subtask.name ? subtask.name : "Untitled Subtask"}
                 </span>
                 <CheckCircle
                   className={`w-5 h-5 cursor-pointer transition ${
@@ -213,7 +354,7 @@ const TaskCard = ({ task, onPinTask, onSubtaskToggle }) => {
                       ? "text-green-500"
                       : "text-gray-400 hover:text-green-500"
                   }`}
-                  onClick={() => onSubtaskToggle(task.id, index)} // ✅ Call function correctly
+                  onClick={() => toggleSubtaskCompletion(index)}
                 />
               </div>
             ))}
