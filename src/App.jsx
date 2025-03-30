@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { AuthProvider } from "./context/AuthContext";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "./firebase";
-
+import { Analytics } from "@vercel/analytics/react"
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -23,6 +23,7 @@ function App() {
 
   return (
     <AuthProvider>
+      <Analytics/>
       <Router>
         <Routes>
           {/* 🔹 Home Page is the first page */}
